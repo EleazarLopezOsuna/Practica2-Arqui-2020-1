@@ -44,8 +44,8 @@ INCLUDE eval.asm
 		mensajeMostrarCoeficiente3 DB '*x3', '$'
 		mensajeMostrarCoeficiente2 DB '*x2', '$'
 		mensajeMostrarCoeficiente1 DB '*x1', '$'
-		mensajeTab DB 0AH, 0AH, 0DH, '	', '$'
-		salto DB 0AH, 0DH, '$'
+		mensajeTab DB '	', '$'
+		mensajeReporteCreado DB 0AH, 0DH, '	Reporte creado con exito', '$'
 	;======================
 	;==MENSAJES A MOSTRAR==
 	;======================
@@ -56,6 +56,11 @@ INCLUDE eval.asm
 		errorIngresarFuncion DB 0AH, 0DH, '	Error: se esperaba valor numerico con la estructura [+|-]?[0-9]', '$'
 		errorFaltaPuntoComa DB 0AH, 0DH, '	Error: falta punto y coma', '$'
 		errorDivisionCero DB 0AH, 0DH, '	Error: division por 0 no definida', '$'
+		errorIntervalo DB 0AH, 0DH, '	El limite inferior del intervalo no puede ser mayor al limite superior', '$'
+		errorNoHayFuncion DB 0AH, 0DH, '	Error: no hay ninguna funcion en memoria', '$'
+		errorAbrirArchivo DB 0AH, 0DH, '	Error: hubo un problema al abrir el archivo', '$'
+		errorExtension DB 0AH, 0DH, '	Error: extension no soportada, se recomienda .arq', '$'
+		errorRuta DB 0AH, 0DH, '	Error: la ruta debe iniciar y terminar con @@', '$'
 	;=====================
 	;==MENSAJES DE ERROR==
 	;=====================
@@ -65,14 +70,7 @@ INCLUDE eval.asm
 	;===============
 		calculadoraNombreArchivo DB 80 dup(0)
 		calculadoraTextoRecibido DB 9999 dup('$')
-		calculadoraTextoTamanio DB 0000
-		calculadoraSimbolos DB '+', '-', '*', '/'
-		calculadoraResultado DB 80 dup('$') ; $ representa que ya termino ; Primer posicion representa el signo
-		calculadoraResultadoTamanio DB 0000
-		calculadoraTermino1 DB 80 dup('$') ; $ representa que ya termino ; Primer posicion representa el signo
-		calculadoraTermino1Tamanio DB 0000
-		calculadoraTermino2 DB 80 dup('$') ; $ representa que ya termino ; Primer posicion representa el signo
-		calculadoraTermino2Tamanio DB 0000
+		calculadoraRutaOficial DB 80 dup(0)
 	;===============
 	;==CALCULADORA==
 	;===============
@@ -80,14 +78,22 @@ INCLUDE eval.asm
 	;===========
 	;==REPORTE==
 	;===========
-		reporteNombre DB 'repo.txt', 0000
-		reporteEncabezado DB 0AH, 0DH, '	UNIVERSIDAD DE SAN CARLOS DE GUATEMALA', 0AH, 0DH, '	FACULTAD DE INGENIERIA', 0AH, 0DH, '	CIENCIAS Y SISTEMAS', 0AH, 0DH, '	ARQUITECTURA DE COMPUTADORES Y ENSAMBLADORES 1 A', 0AH, 0DH, '	PRIMER SEMESTRE 2020', 0AH, 0DH, '	ELEAZAR JARED LOPEZ OSUNA', 0AH, 0DH, '	201700893', '$'
-		reportePractica DB 0AH, 0DH, '	REPORTE PRACTICA NO. 5', '$'
-		reporteFecha DB 0AH, 0DH, '	FECHA: ', '$'
-		reporteHora DB 0AH, 0DH, '	HORA: ', '$'
-		reporteOriginal DB 0AH, 0DH, ' FUNCION ORIGINAL: ', 0AH, 0DH, '	f(x) = ', '$'
-		reporteDerivada DB 0AH, 0DH, ' FUNCION DERIVADA: ', 0AH, 0DH, '	f''(x) = ', '$'
-		reporteIntegral DB 0AH, 0DH, ' FUNCION INTEGRAL: ', 0AH, 0DH, '	F(x) = ', '$'
+		fecha DB 15 dup('$')
+		reporteNombre DB 'repo.html', 0000
+		reporteInicioHtml DB '<html><body>' ; 12
+		reporteUniversidad DB 0AH, 0DH, '<h3>UNIVERSIDAD DE SAN CARLOS DE GUATEMALA</h3>' ; 49
+		reporteFacultad DB 0AH, 0DH, '<h3>FACULTAD DE INGENIERIA</h3>' ; 33
+		reporteEscuela DB 0AH, 0DH, '<h3>ESCUELA DE CIENCIAS Y SISTEMAS</h3>' ; 41
+		reporteCurso DB 0AH, 0DH, '<h3>ARQUITECTURA DE COMPUTADORAS Y ENSAMBLADORES 1 | A</h3>' ; 61
+		reporteSemestre DB 0AH, 0DH,  '<h3>PRIMER SEMESTRE 2020</h3>' ; 31
+		reporteNombreEstudiante DB 0AH, 0DH, '<h3>ELEAZAR JARED LOPEZ OSUNA</h3>' ; 36
+		reporteCarnet DB 0AH, 0DH, '<h3>201700893</h3>' ; 20
+		reportePractica DB 0AH, 0DH, '<h4>REPORTE PRACTICA NO. 2</h4>' ; 33
+		reporteFechaHora DB 0AH, 0DH, '<h4>FECHA Y HORA: ' ; 21
+		reporteOriginal DB 0AH, 0DH, '</h4><h4>FUNCION ORIGINAL: f(x) = ' ; 38
+		reporteDerivada DB 0AH, 0DH, '</h4><h4>FUNCION DERIVADA: f´(x) = ' ; 39
+		reporteIntegral DB 0AH, 0DH, '</h4><h4>FUNCION INTEGRADA: F(x) = ' ; 39
+		reporteFinHtml DB 0AH, 0DH, '</h4></body></html>' ; 21
 	;===========
 	;==REPORTE==
 	;===========
@@ -95,9 +101,9 @@ INCLUDE eval.asm
 	;============
 	;==GRAFICAR==
 	;============
-		graficarIntervaloInicial DB 0000, 0000, 0000 ; 3 posiciones: 2 para digitos y 1 para posible signo
-		graficarIntervaloFinal DB 0000, 0000, 0000 ; 3 posiciones: 2 para digitos y 1 para posible signo
-		graficarConstanteIntegracion DB 0000, 0000, 0000 ; 3 posiciones: 2 para digitos y 1 para posible signo
+		graficarIntervaloInicial DB 0000, 0000, '$' ; 2 posiciones: 1 para digitos y 1 para posible signo
+		graficarIntervaloFinal DB 0000, 0000, '$' ; 2 posiciones: 1 para digitos y 1 para posible signo
+		graficarConstanteIntegracion DB 0000, 0000, '$' ; 2 posiciones: 1 para digitos y 1 para posible signo
 	;============
 	;==GRAFICAR==
 	;============
@@ -107,15 +113,15 @@ INCLUDE eval.asm
 	;===============
 		datoTextoUsuario DB 15 dup('$')
 		manejadorArchivoCalculadora DW ?
-		contadorCaracteres DB ?
+		contadorCaracteres DB 0000
 		datoVerificacionNumero DB 0000, 0000
 		pilaOperaciones DW 4096 dup('$')
+		signoResultado DB 0000, '$'
 		indexOperaciones DB 0000, '$'
 		numeroTransformar DB 0000, 0000
 		numeroMas DB 0000
 		numeroMenos DB 0000
 		resultadoOperacion DB 0000, '$'
-		resultadoConversion DB 0000
 		operador1 DW 0000
 		multi DB 'Es multi', '$'
 		essuma DB 0AH, 0DH, 'Es suma', '$'
@@ -123,6 +129,16 @@ INCLUDE eval.asm
 		mostrarRespuesta DB 0000, 0000, 0000, 0000, 0000, '$'
 		overF DB 0AH, 0DH, 'Overflow', '$'
 		resultado DW 0000, '$'
+		textoRangoInferior DB 15 dup('$')
+		textoRangoSuperior DB 15 dup('$')
+		textoDatoConstante DB 15 dup('$')
+		tipoGrafica DB 0000
+		resultadoGrafica DB 0000, '$'
+		posiX DW 0000, '$'
+		posiY DW 0000, '$'
+		linea DB ' ', '$'
+		signoEvaluacion DB 0000
+		ingresoFuncion DB 0000
 
 		datoCoeficienteFuncion5 DB 2 dup('$') ; 2 posiciones: 1 para digitos y 1 para posible signo
 		datoCoeficienteFuncion4 DB 002BH, 0000, '$' ; 1 -> positivo, 0 -> negativo
@@ -135,13 +151,17 @@ INCLUDE eval.asm
 		datoCoeficienteDerivada2 DB 002BH, 0000, 0000, '$' ; 3 posiciones: 2 para digitos y 1 para posible signo
 		datoCoeficienteDerivada1 DB 002BH, 0000, 0000, '$' ; 3 posiciones: 2 para digitos y 1 para posible signo
 		datoCoeficienteDerivada0 DB 002BH, 0000, 0000, '$' ; 3 posiciones: 2 para digitos y 1 para posible signo
+		datoCoeficienteDerivada3S DB 002BH, 0000, '$'
+		datoCoeficienteDerivada2S DB 002BH, 0000, '$'
+		datoCoeficienteDerivada1S DB 002BH, 0000, '$'
+		datoCoeficienteDerivada0S DB 002BH, 0000, '$'
 
 		datoCoeficienteIntegral5 DB 002BH, 0000, 002EH, 0000, '$' ; 4 posiciones: 1 para parte entera, 1 para punto, 1 para parte decimal y 1 para posible signo
 		datoCoeficienteIntegral4 DB 002BH, 0000, 002EH, 0000, '$' ; 4 posiciones: 1 para parte entera, 1 para punto, 1 para parte decimal y 1 para posible signo
 		datoCoeficienteIntegral3 DB 002BH, 0000, 002EH, 0000, '$' ; 4 posiciones: 1 para parte entera, 1 para punto, 1 para parte decimal y 1 para posible signo
 		datoCoeficienteIntegral2 DB 002BH, 0000, 002EH, 0000, '$' ; 4 posiciones: 1 para parte entera, 1 para punto, 1 para parte decimal y 1 para posible signo
 		datoCoeficienteIntegral1 DB 002BH, 0000, '$' ; 2 posiciones: 1 para parte entera y 1 para posible signo
-		datoCoeficienteIntegral0 DB 002BH, 0000, 0000, '$' ; 3 posiciones: 2 para parte entera y 1 para posible signo
+		datoCoeficienteIntegral0 DB 002BH, 0000, '$' ; 3 posiciones: 2 para parte entera y 1 para posible signo
 	;==DATOS EXTRA==
 	;===============
 
@@ -188,7 +208,7 @@ INCLUDE eval.asm
 			INGRESAR_FUNCION:
 				PUSH AX
 				clearScreen ; Limpia la pantalla
-
+				reiniciarFuncion
 				print mensajeCoeficiente4 ; Solicita el coeficiente 4
 				CALL LEER_DATO ; Obtiene el coeficiente 4
 				CALL PROCESAR_COEFICIENTE
@@ -240,14 +260,10 @@ INCLUDE eval.asm
 				MOV datoCoeficienteFuncion0[0001], AL
 
 				POP AX
-
+				CALL DERIVAR
+				CALL INTEGRAR
+				MOV ingresoFuncion, 0001
 				JMP MENU ; Regresar al menu
-
-				ERROR_INGRESAR_FUNCION:
-					print errorIngresarFuncion
-					CALL PAUSA
-					POP AX
-					JMP INGRESAR_FUNCION
 		;====================
 		;==INGRESAR FUNCION==
 		;====================
@@ -257,6 +273,8 @@ INCLUDE eval.asm
 		;====================
 			FUNCION_MEMORIA:
 				clearScreen ; Limpia la pantalla
+				CMP ingresoFuncion, 0000
+				JE ERROR_FALTA_FUNCION
 				printFuncionOriginal
 				CALL PAUSA
 				JMP MENU ; Regresa al menu
@@ -269,7 +287,8 @@ INCLUDE eval.asm
 		;====================
 			FUNCION_DERIVADA:
 				clearScreen ; Limpia la pantalla
-				CALL DERIVAR
+				CMP ingresoFuncion, 0000
+				JE ERROR_FALTA_FUNCION
 				printFuncionDerivada
 				CALL PAUSA
 				JMP MENU ; Regresa al menu
@@ -282,10 +301,10 @@ INCLUDE eval.asm
 		;====================
 			FUNCION_INTEGRAL:
 				clearScreen ; Limpia la pantalla
-				CALL INTEGRAR
+				CMP ingresoFuncion, 0000
+				JE ERROR_FALTA_FUNCION
 				printFuncionIntegral
 				CALL PAUSA
-
 				JMP MENU ; Regresa al menu
 		;====================
 		;==FUNCION INTEGRAL==
@@ -296,6 +315,8 @@ INCLUDE eval.asm
 		;====================
 			GRAFICAR_FUNCIONES:
 				clearScreen ; Limpia la pantalla
+				CMP ingresoFuncion, 0000
+				JE ERROR_FALTA_FUNCION
 				print mensajeMenuGraficar ; Muestra el menu para graficar
 				getChar ; Captura el caracter
 				CMP AL, 49D ; caracter == 1
@@ -307,48 +328,57 @@ INCLUDE eval.asm
 				CMP AL, 52D ; caracter == 4
 				JE MENU  ; Regresar
 				JMP GRAFICAR_FUNCIONES ; Si el caracter no es un numero entre [1,8] regresa al menu
-
-
 				GRAFICAR_ORIGINAL:
 					clearScreen ; Limpia la pantalla
 					print mensajeInicialIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoInferior ; El usuario ingresa el dato
+					transformarRango textoRangoInferior, graficarIntervaloInicial
 					;======================================================================================PROCESAR DATO
 					print mensajeFinalIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoSuperior ; El usuario ingresa el dato
+					transformarRango textoRangoSuperior, graficarIntervaloFinal
 					;======================================================================================PROCESAR DATO
-
+					comprobarRango
+					MOV tipoGrafica, 0000
+					dibujarPlano tipoGrafica
 					CALL PAUSA ; PONER ACA EL CODIGO PARA GRAFICAR LA FUNCION ORIGINAL
 					JMP MENU
 
 				GRAFICAR_DERIVADA:
 					clearScreen ; Limpia la pantalla
 					print mensajeInicialIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoInferior ; El usuario ingresa el dato
+					transformarRango textoRangoInferior, graficarIntervaloInicial
 					;======================================================================================PROCESAR DATO
 					print mensajeFinalIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoSuperior ; El usuario ingresa el dato
+					transformarRango textoRangoSuperior, graficarIntervaloFinal
 					;======================================================================================PROCESAR DATO
-
+					comprobarRango
+					MOV tipoGrafica, 0001
+					dibujarPlano tipoGrafica
 					CALL PAUSA ; PONER ACA EL CODIGO PARA GRAFICAR LA FUNCION ORIGINAL
 					JMP MENU
 
 				GRAFICAR_INTEGRAL:
 					clearScreen ; Limpia la pantalla
 					print mensajeInicialIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoInferior ; El usuario ingresa el dato
+					transformarRango textoRangoInferior, graficarIntervaloInicial
 					;======================================================================================PROCESAR DATO
 					print mensajeFinalIntervalo ; Solicita el valor inicial del intervalo
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoRangoSuperior ; El usuario ingresa el dato
+					transformarRango textoRangoSuperior, graficarIntervaloFinal
+					comprobarRango
 					;======================================================================================PROCESAR DATO
 					print mensajeConstanteC ; Solicita el valor de la constante de integracion C
-					stringRead datoTextoUsuario ; El usuario ingresa el dato
+					stringRead textoDatoConstante ; El usuario ingresa el dato
+					transformarRango textoDatoConstante, graficarConstanteIntegracion
 					;======================================================================================PROCESAR DATO
-
+					MOV tipoGrafica, 0002
+					dibujarPlano tipoGrafica
 					CALL PAUSA ; PONER ACA EL CODIGO PARA GRAFICAR LA FUNCION ORIGINAL
 					JMP MENU
-				
-
 				JMP MENU ; Regresa al menu
 		;====================
 		;==GRAFICAR FUNCION==
@@ -359,6 +389,9 @@ INCLUDE eval.asm
 		;===================
 			GENERAR_REPORTE:
 				clearScreen ; Limpia la pantalla
+				print mensajeReporteCreado
+				crearHtml reporteNombre
+				CALL PAUSA
 				;===========================================================GENERAR REPORTE
 				JMP MENU ; Regresa al menu
 		;===================
@@ -370,8 +403,11 @@ INCLUDE eval.asm
 		;=====================
 			ABRIR_CALCULADORA:
 				clearScreen ; Limpia la pantalla
+				reiniciarAnalisis
 				print mensajeCalculadora ; Solicita el nombre del archivo a cargar
 				stringRead calculadoraNombreArchivo ; Obtiene la ruta ingresada por el usuario
+				comprobarRuta
+				comprobarExtension
 				fileReader
 				operar
 				;print pilaOperaciones
@@ -381,6 +417,7 @@ INCLUDE eval.asm
 				print mensajeTab
 				print calculadoraTextoRecibido
 				print mensajeResultadoOperacion
+				print signoResultado
 				print mostrarRespuesta
 				;============================================================PROCESAR DATOS
 				CALL PAUSA
@@ -388,6 +425,57 @@ INCLUDE eval.asm
 		;=====================
 		;==ABRIR CALCULADORA==
 		;=====================
+
+		;===========
+		;==ERRORES==
+		;===========
+			ERROR_INGRESAR_FUNCION:
+				print errorIngresarFuncion
+				CALL PAUSA
+				POP AX
+				JMP INGRESAR_FUNCION
+			ERROR_FALTA_FUNCION:
+				clearScreen
+				print errorNoHayFuncion
+				CALL PAUSA
+				JMP MENU
+			ERROR_RANGO:
+				print errorIntervalo
+				CALL PAUSA
+				reiniciarGrafica
+				JMP GRAFICAR_FUNCIONES
+			ERROR_FUNCION_ANALISIS:
+				reiniciarPath
+				print errorIngresarFuncion
+      			CALL PAUSA
+      			JMP MENU
+      		ERROR_PUNTOCOMA_ANALISIS:
+      			reiniciarPath
+      			print errorFaltaPuntoComa
+      			CALL PAUSA
+      			JMP MENU
+      		ERROR_DIVISION_CERO:
+      			print errorDivisionCero
+      			CALL PAUSA
+      			JMP MENU
+      		ERROR_ABRIR:
+      			print errorAbrirArchivo
+      			reiniciarPath
+      			CALL PAUSA
+      			JMP ABRIR_CALCULADORA
+      		ERROR_EXTENSION:
+      			print errorExtension
+      			reiniciarPath
+      			CALL PAUSA
+      			JMP ABRIR_CALCULADORA
+      		ERROR_RUTA:
+      			print errorRuta
+      			reiniciarPath
+      			CALL PAUSA
+      			JMP ABRIR_CALCULADORA
+		;===========
+		;==ERRORES==
+		;===========
 
 		;=========
 		;==SALIR==
@@ -402,10 +490,1027 @@ INCLUDE eval.asm
 		;===================
 		;==PROCEDIMIENTOS===
 		;===================
+			ORIGINALOPERARC4 PROC
+				;X^4
+				XOR AH, AH
+				MOV AL, datoCoeficienteFuncion4[0001] ; Coeficiente
+				MUL BL ; Dato
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^3
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^4
+				CMP AX, 0062H
+				JA SALIR
+				ADD resultadoGrafica[0000], AL
+				CMP resultadoGrafica[0000], 0062H ; Se sale del rango
+				JA SALIR
+				CMP datoCoeficienteFuncion4[0000], 002BH ; Es positivo
+				JE SUMAR
+				MOV signoResultado, 0001 ; 0000->positivo. 0001->negativo
+				JMP SALIR
+
+				SUMAR:
+					MOV signoResultado, 0000 ; 0000->positivo. 0001->negativo
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+					
+				SALIR2:
+					RET
+			ORIGINALOPERARC4 ENDP
+
+			ORIGINALOPERARC3 PROC
+				;X^3
+				XOR AH, AH
+				MOV AL, datoCoeficienteFuncion3[0001] ; Coeficiente
+				MUL BL ; Dato
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^3
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+
+				CMP datoCoeficienteFuncion3[0000], 002BH
+				JE SEGUNDOPOSITIVO ; El coeficiente 3 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE S
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			ORIGINALOPERARC3 ENDP
+
+			ORIGINALOPERARC2 PROC
+				;X^2
+				XOR AH, AH
+				MOV AL, datoCoeficienteFuncion2[0001] ; Coeficiente
+				MUL BL ; Dato
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion2[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 2 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			ORIGINALOPERARC2 ENDP
+
+			ORIGINALOPERARC1 PROC
+				;X^1
+				XOR AH, AH
+				MOV AL, datoCoeficienteFuncion1[0001] ; Coeficiente
+				MUL BL ; Dato
+
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion1[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 1 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE S
+
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+					
+				SALIR2:
+					RET
+			ORIGINALOPERARC1 ENDP
+
+			ORIGINALOPERARC0 PROC
+				MOV AL, datoCoeficienteFuncion0[0001]
+				CMP datoCoeficienteFuncion0[0000], 002BH
+				JE SEGUNDOPOSITIVO
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000
+					JNE PNSP ; Primero negativo
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PNSP:
+					CMP resultadoGrafica, AL
+					JB PPSGP
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSGP:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+
+				PPSN:
+					CMP resultadoGrafica, AL
+					JB PPSGN
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					RET
+			ORIGINALOPERARC0 ENDP
+
+			DERIVADAOPERARC3 PROC
+				;X^3
+				XOR AH, AH
+				MOV AL, datoCoeficienteDerivada3S[0001] ; Coeficiente
+				MUL BL ; Dato
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^3
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+
+				CMP datoCoeficienteFuncion3[0000], 002BH
+				JE SEGUNDOPOSITIVO ; El coeficiente 3 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE S
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			DERIVADAOPERARC3 ENDP
+
+			DERIVADAOPERARC2 PROC
+				;X^2
+				XOR AH, AH
+				MOV AL, datoCoeficienteDerivada2S[0001] ; Coeficiente
+				MUL BL ; Dato
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion2[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 2 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			DERIVADAOPERARC2 ENDP
+
+			DERIVADAOPERARC1 PROC
+				;X^1
+				XOR AH, AH
+				MOV AL, datoCoeficienteDerivada1S[0001] ; Coeficiente
+				MUL BL ; Dato
+
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion1[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 1 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE S
+
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+					
+				SALIR2:
+					RET
+			DERIVADAOPERARC1 ENDP
+
+			DERIVADAOPERARC0 PROC
+				MOV AL, datoCoeficienteDerivada0S[0001]
+				CMP datoCoeficienteFuncion0[0000], 002BH
+				JE SEGUNDOPOSITIVO
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000
+					JNE PNSP ; Primero negativo
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PNSP:
+					CMP resultadoGrafica, AL
+					JB PPSGP
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSGP:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+
+				PPSN:
+					CMP resultadoGrafica, AL
+					JB PPSGN
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					RET
+			DERIVADAOPERARC0 ENDP
+
+			INTEGRALOPERARC5 PROC
+				;X^4
+				XOR AH, AH
+				MOV AL, datoCoeficienteIntegral5[0001] ; Coeficiente
+				MUL BL ; Dato
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^3
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^4
+				CMP AX, 0062H
+				JA SALIR
+				ADD resultadoGrafica[0000], AL
+				CMP resultadoGrafica[0000], 0062H ; Se sale del rango
+				JA SALIR
+				CMP datoCoeficienteFuncion4[0000], 002BH ; Es positivo
+				JE SUMAR
+				MOV signoResultado, 0001 ; 0000->positivo. 0001->negativo
+				JMP SALIR
+
+				SUMAR:
+					MOV signoResultado, 0000 ; 0000->positivo. 0001->negativo
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+					
+				SALIR2:
+					RET
+			INTEGRALOPERARC5 ENDP
+
+			INTEGRALOPERARC4 PROC
+				;X^4
+				XOR AH, AH
+				MOV AL, datoCoeficienteIntegral4[0001] ; Coeficiente
+				MUL BL ; Dato
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion3[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 2 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			INTEGRALOPERARC4 ENDP
+
+			INTEGRALOPERARC3 PROC
+				;X^3
+				XOR AH, AH
+				MOV AL, datoCoeficienteIntegral3[0001] ; Coeficiente
+				MUL BL ; Dato
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				MUL BL ; Dato^3
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+
+				CMP datoCoeficienteFuncion2[0000], 002BH
+				JE SEGUNDOPOSITIVO ; El coeficiente 3 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Se esta evaluando un numero negativo
+					JE S
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			INTEGRALOPERARC3 ENDP
+
+			INTEGRALOPERARC2 PROC
+				;X^2
+				XOR AH, AH
+				MOV AL, datoCoeficienteIntegral1[0001] ; Coeficiente
+				MUL BL ; Dato
+				MUL BL ; Dato^2
+				CMP AX, 0062H
+				JA SALIR
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion1[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 2 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+
+				SALIR2:
+					RET
+			INTEGRALOPERARC2 ENDP
+
+			INTEGRALOPERARC1 PROC
+				;X^1
+				XOR AH, AH
+				MOV AL, datoCoeficienteIntegral0[0001] ; Coeficiente
+				MUL BL ; Dato
+
+				CMP resultadoGrafica[0000], 0062H
+				JA SALIR
+				CMP datoCoeficienteFuncion0[0000], 002BH ; Coeficiente Positivo
+				JE SEGUNDOPOSITIVO ; El coeficiente 1 es positivo
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE D
+				S:
+					CMP signoResultado, 0000 ; Resultado anterior es positivo
+					JE PPSP ; Primero positivo Segundo Positivo
+
+					;PNSP -> Primero negativo Segundo positivo
+					CMP resultadoGrafica[0000], AL
+					JB PPSGP ; Primero pequeño Segundo grande
+
+					;Primero grande Segundo pequeño
+					;Primero negativo Segundo positivo
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				;Primero pequeño Segundo grande
+				;Primero negativo Segundo positivo
+				PPSGP:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSP:
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+
+				SEGUNDONEGATIVO:
+					CMP signoEvaluacion, 0001 ; Esta evaluando numeros negativos
+					JE S
+
+				D:
+					CMP signoResultado, 0000
+					JE PPSN
+
+					;Primero negativo, Segundo negativo
+					ADD resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSN:
+					CMP resultadoGrafica[0000], AL
+					JB PPSGN
+
+					SUB resultadoGrafica[0000], AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica[0000]
+					MOV resultadoGrafica[0000], AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					JA SALIR2
+					CMP AX, 0062H
+					RET
+					
+				SALIR2:
+					RET
+			INTEGRALOPERARC1 ENDP
+
+			INTEGRALOPERARC0 PROC
+				MOV AL, graficarConstanteIntegracion[0001]
+				CMP graficarConstanteIntegracion[0000], 002BH
+				JE SEGUNDOPOSITIVO
+				JMP SEGUNDONEGATIVO
+
+				SEGUNDOPOSITIVO:
+					CMP signoResultado, 0000
+					JNE PNSP ; Primero negativo
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PNSP:
+					CMP resultadoGrafica, AL
+					JB PPSGP
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				PPSGP:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				SEGUNDONEGATIVO:
+					CMP signoResultado, 0000
+					JE PPSN
+					ADD resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+
+				PPSN:
+					CMP resultadoGrafica, AL
+					JB PPSGN
+					SUB resultadoGrafica, AL
+					MOV signoResultado, 0000 ; Resultado positivo
+					JMP SALIR
+
+				PPSGN:
+					SUB AL, resultadoGrafica
+					MOV resultadoGrafica, AL
+					MOV signoResultado, 0001 ; Resultado negativo
+					JMP SALIR
+
+				SALIR:
+					CMP resultadoGrafica[0000], 0062H
+					RET
+			INTEGRALOPERARC0 ENDP
+
 			PROBAROVERF PROC
 				CMP CH, 002BH
 				JE CAMBIAR
 				CMP CH, 002DH
+				JE CAMBIAR
 				JMP SALIR
 
 				CAMBIAR:
@@ -490,9 +1595,10 @@ INCLUDE eval.asm
 
 			DERIVAR PROC
 				pushear
-				print datoCoeficienteFuncion4
+				XOR AH, AH
 				MOV AL, 0004 ; Obtenemos el valor del coeficiente
 				MUL datoCoeficienteFuncion4[0001] ; Multiplicamos por el exponente de x y se almacena en AL
+				MOV datoCoeficienteDerivada3S[0001], AL
 				AAM ; Desempaquetamos 
 				MOV BX, AX ; Se copia el registro AX en BX
 				MOV datoCoeficienteDerivada3[0002], BL
@@ -500,8 +1606,10 @@ INCLUDE eval.asm
 				MOV AL, datoCoeficienteFuncion4[0000]
 				MOV datoCoeficienteDerivada3[0000], AL
 
+				XOR AH, AH
 				MOV AL, 0003 ; Obtenemos el valor del coeficiente
 				MUL datoCoeficienteFuncion3[0001] ; Multiplicamos por el exponente de x y se almacena en AL
+				MOV datoCoeficienteDerivada2S[0001], AL
 				AAM ; Desempaquetamos 
 				MOV BX, AX ; Se copia el registro AX en BX
 				MOV datoCoeficienteDerivada2[0002], BL
@@ -509,8 +1617,10 @@ INCLUDE eval.asm
 				MOV AL, datoCoeficienteFuncion3[0000]
 				MOV datoCoeficienteDerivada2[0000], AL
 
+				XOR AH, AH
 				MOV AL, 0002 ; Obtenemos el valor del coeficiente
 				MUL datoCoeficienteFuncion2[0001] ; Multiplicamos por el exponente de x y se almacena en AL
+				MOV datoCoeficienteDerivada1S[0001], AL
 				AAM ; Desempaquetamos 
 				MOV BX, AX ; Se copia el registro AX en BX
 				MOV datoCoeficienteDerivada1[0002], BL
@@ -518,15 +1628,15 @@ INCLUDE eval.asm
 				MOV AL, datoCoeficienteFuncion2[0000]
 				MOV datoCoeficienteDerivada1[0000], AL
 
-				MOV AL, 0001 ; Obtenemos el valor del coeficiente
-				MUL datoCoeficienteFuncion1[0001] ; Multiplicamos por el exponente de x y se almacena en AL
+				XOR AH, AH
+				MOV AL, datoCoeficienteFuncion1[0001] ; Obtenemos el valor del coeficiente
+				MOV datoCoeficienteDerivada0S[0001], AL
 				AAM ; Desempaquetamos 
 				MOV BX, AX ; Se copia el registro AX en BX
 				MOV datoCoeficienteDerivada0[0002], BL
 				MOV datoCoeficienteDerivada0[0001], BH
 				MOV AL, datoCoeficienteFuncion1[0000]
 				MOV datoCoeficienteDerivada0[0000], AL
-
 				poppear
 				RET
 			DERIVAR ENDP
@@ -537,7 +1647,7 @@ INCLUDE eval.asm
 
 				print datoCoeficienteFuncion4
 				
-				MOV BL, 0004 ; Obtenemos el valor del coeficiente
+				MOV BL, 0005 ; Obtenemos el valor del coeficiente
 				MOV AL, datoCoeficienteFuncion4[0001] ; Multiplicamos por el exponente de x y se almacena en AL
 				DIV BL 
 				MOV datoCoeficienteIntegral5[0001], AL
@@ -553,7 +1663,7 @@ INCLUDE eval.asm
 
 
 				
-				MOV BL, 0003 ; Obtenemos el valor del coeficiente
+				MOV BL, 0004 ; Obtenemos el valor del coeficiente
 				MOV AL, datoCoeficienteFuncion3[0001] ; Multiplicamos por el exponente de x y se almacena en AL
 				DIV BL 
 				MOV datoCoeficienteIntegral4[0001], AL
@@ -569,7 +1679,7 @@ INCLUDE eval.asm
 				
 
 
-				MOV BL, 0002 ; Obtenemos el valor del coeficiente
+				MOV BL, 0003 ; Obtenemos el valor del coeficiente
 				MOV AL, datoCoeficienteFuncion2[0001] ; Multiplicamos por el exponente de x y se almacena en AL
 				DIV BL 
 				MOV datoCoeficienteIntegral3[0001], AL
@@ -582,10 +1692,8 @@ INCLUDE eval.asm
 				MOV AL, datoCoeficienteFuncion2[0000]
 				MOV datoCoeficienteIntegral3[0000], AL
 				XOR AX, AX
-
-
 				
-				MOV BL, 0001 ; Obtenemos el valor del coeficiente
+				MOV BL, 0002 ; Obtenemos el valor del coeficiente
 				MOV AL, datoCoeficienteFuncion1[0001] ; Multiplicamos por el exponente de x y se almacena en AL
 				DIV BL 
 				MOV datoCoeficienteIntegral2[0001], AL
@@ -598,8 +1706,6 @@ INCLUDE eval.asm
 				MOV AL, datoCoeficienteFuncion1[0000]
 				MOV datoCoeficienteIntegral2[0000], AL
 				XOR AX, AX
-
-
 
 				MOV BL, datoCoeficienteFuncion0[0001]
 				MOV datoCoeficienteIntegral1[0001], BL
