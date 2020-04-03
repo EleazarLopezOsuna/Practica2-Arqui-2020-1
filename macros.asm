@@ -280,12 +280,10 @@ printFuncionIntegral MACRO
 	ADD datoCoeficienteIntegral3[0001], 0030H
 	ADD datoCoeficienteIntegral2[0001], 0030H
 	ADD datoCoeficienteIntegral1[0001], 0030H
-
 	ADD datoCoeficienteIntegral5[0003], 0030H
 	ADD datoCoeficienteIntegral4[0003], 0030H
 	ADD datoCoeficienteIntegral3[0003], 0030H
 	ADD datoCoeficienteIntegral2[0003], 0030H
-
 	ADD datoCoeficienteIntegral0[0001], 0030H
 	ADD datoCoeficienteIntegral0[0002], 0030H
 
@@ -307,12 +305,383 @@ printFuncionIntegral MACRO
 	SUB datoCoeficienteIntegral3[0001], 0030H
 	SUB datoCoeficienteIntegral2[0001], 0030H
 	SUB datoCoeficienteIntegral1[0001], 0030H
-
 	SUB datoCoeficienteIntegral5[0003], 0030H
 	SUB datoCoeficienteIntegral4[0003], 0030H
 	SUB datoCoeficienteIntegral3[0003], 0030H
 	SUB datoCoeficienteIntegral2[0003], 0030H
-
 	SUB datoCoeficienteIntegral0[0001], 0030H
 	SUB datoCoeficienteIntegral0[0002], 0030H
+ENDM
+
+reiniciarPath MACRO
+	LOCAL CICLO, CICLO2
+   	PUSH SI
+   	XOR SI, SI
+   	CICLO: 
+   		MOV calculadoraNombreArchivo[SI], 0
+   		MOV calculadoraRutaOficial[SI], 0
+    	INC SI
+      	CMP SI, 80
+      	JLE CICLO
+
+    XOR SI, SI
+    CICLO2:
+    	MOV calculadoraTextoRecibido[SI], '$'
+    	INC SI
+    	CMP SI, 9999
+    	JLE CICLO2
+   POP SI
+ENDM
+
+comprobarExtension MACRO
+	pushear
+	XOR SI, SI
+	XOR AX, AX
+	MOV AL, contadorCaracteres
+	MOV SI, AX
+	DEC SI
+	DEC SI
+	DEC SI
+
+	CMP calculadoraNombreArchivo[SI], 0071H ; Ultimo caracter con la letra q
+	JNE ERROR_EXTENSION
+	CMP calculadoraNombreArchivo[SI - 1], 0072H ; Ultimo - 1 caracter con la letra r
+	JNE ERROR_EXTENSION
+	CMP calculadoraNombreArchivo[SI - 2 ], 0061H ; Ultimo - 2 caracter con la letra a
+	JNE ERROR_EXTENSION
+	poppear
+ENDM
+
+comprobarRuta MACRO
+	LOCAL CICLO
+	pushear
+	XOR SI, SI
+	XOR AX, AX
+	MOV AL, contadorCaracteres
+	MOV SI, AX
+	DEC SI
+	CMP calculadoraNombreArchivo[SI], 0040H ; Ultimo caracter con @
+	JNE ERROR_RUTA
+	CMP calculadoraNombreArchivo[SI - 1], 0040H ; Ultimo - 1 caracter con @
+	JNE ERROR_RUTA
+	CMP calculadoraNombreArchivo[0000], 0040H ; Primer caracter con @
+	JNE ERROR_RUTA
+	CMP calculadoraNombreArchivo[0001], 0040H ; Primer + 1 caracter con @
+	JNE ERROR_RUTA
+
+	MOV SI, 0002
+	XOR BX, BX
+	MOV BL, contadorCaracteres
+	DEC BL
+	DEC BL
+	CICLO:
+		MOV AH, calculadoraNombreArchivo[SI]
+		MOV calculadoraRutaOficial[SI - 0002], AH
+		INC SI
+		CMP SI, BX
+		JL CICLO
+	poppear
+ENDM
+
+crearHtml MACRO arch
+	pushear
+	MOV AX,@data  ;Cargamos el segmento de datos para sacar el nombre del archivo.
+	MOV DS, AX
+	MOV AH,3CH ;instrucción para crear el archivo.
+	MOV CX, 0
+	MOV DX, offset arch ;crea el archivo con el nombre ingresado
+	INT 21H
+	
+	MOV BX, AX
+	MOV AH,3EH ;cierra el archivo
+	INT 21H
+
+	abrirHtml arch
+	poppear
+ENDM
+
+abrirHtml MACRO arch
+	pushear
+	MOV AH, 3DH
+	MOV AL, 01H
+	MOV DX, offset arch
+	INT 21H
+	escribirHtml
+	poppear
+ENDM
+
+escribirHtml MACRO
+	pushear
+	MOV BX, AX
+
+	MOV CX, 0012
+	MOV DX, offset reporteInicioHtml
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0049
+	MOV DX, offset reporteUniversidad
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0033
+	MOV DX, offset reporteFacultad
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0041
+	MOV DX, offset reporteEscuela
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0061
+	MOV DX, offset reporteCurso
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0031
+	MOV DX, offset reporteSemestre
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0036
+	MOV DX, offset reporteNombreEstudiante
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0020
+	MOV DX, offset reporteCarnet
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0033
+	MOV DX, offset reportePractica
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0021
+	MOV DX, offset reporteFechaHora
+	MOV AH, 0040H
+	INT 21H
+
+	getTime fecha
+
+	MOV CX, 0015
+	MOV DX, offset fecha
+	MOV AH, 40H
+	INT 21H
+
+	MOV CX, 0038
+	MOV DX, offset reporteOriginal
+	MOV AH, 0040H
+	INT 21H
+
+	ADD datoCoeficienteFuncion4[0001], 0030H
+	ADD datoCoeficienteFuncion3[0001], 0030H
+	ADD datoCoeficienteFuncion2[0001], 0030H
+	ADD datoCoeficienteFuncion1[0001], 0030H
+	ADD datoCoeficienteFuncion0[0001], 0030H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteFuncion4
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente4
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteFuncion3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteFuncion2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteFuncion1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteFuncion0
+	MOV AH, 0040H
+	INT 21H
+
+	SUB datoCoeficienteFuncion4[0001], 0030H
+	SUB datoCoeficienteFuncion3[0001], 0030H
+	SUB datoCoeficienteFuncion2[0001], 0030H
+	SUB datoCoeficienteFuncion1[0001], 0030H
+	SUB datoCoeficienteFuncion0[0001], 0030H
+
+	MOV CX, 0039
+	MOV DX, offset reporteDerivada
+	MOV AH, 0040H
+	INT 21H
+
+	ADD datoCoeficienteDerivada3[0001], 0030H
+	ADD datoCoeficienteDerivada2[0001], 0030H
+	ADD datoCoeficienteDerivada1[0001], 0030H
+	ADD datoCoeficienteDerivada0[0001], 0030H
+	ADD datoCoeficienteDerivada3[0002], 0030H
+	ADD datoCoeficienteDerivada2[0002], 0030H
+	ADD datoCoeficienteDerivada1[0002], 0030H
+	ADD datoCoeficienteDerivada0[0002], 0030H
+
+	MOV CX, 0003
+	MOV DX, offset datoCoeficienteDerivada3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset datoCoeficienteDerivada2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset datoCoeficienteDerivada1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset datoCoeficienteDerivada0
+	MOV AH, 0040H
+	INT 21H
+
+	SUB datoCoeficienteDerivada3[0001], 0030H
+	SUB datoCoeficienteDerivada2[0001], 0030H
+	SUB datoCoeficienteDerivada1[0001], 0030H
+	SUB datoCoeficienteDerivada0[0001], 0030H
+	SUB datoCoeficienteDerivada3[0002], 0030H
+	SUB datoCoeficienteDerivada2[0002], 0030H
+	SUB datoCoeficienteDerivada1[0002], 0030H
+	SUB datoCoeficienteDerivada0[0002], 0030H
+
+	MOV CX, 0039
+	MOV DX, offset reporteIntegral
+	MOV AH, 0040H
+	INT 21H
+
+	ADD datoCoeficienteIntegral5[0001], 0030H
+	ADD datoCoeficienteIntegral4[0001], 0030H
+	ADD datoCoeficienteIntegral3[0001], 0030H
+	ADD datoCoeficienteIntegral2[0001], 0030H
+	ADD datoCoeficienteIntegral1[0001], 0030H
+	ADD datoCoeficienteIntegral5[0003], 0030H
+	ADD datoCoeficienteIntegral4[0003], 0030H
+	ADD datoCoeficienteIntegral3[0003], 0030H
+	ADD datoCoeficienteIntegral2[0003], 0030H
+	ADD datoCoeficienteIntegral0[0001], 0030H
+	ADD datoCoeficienteIntegral0[0002], 0030H
+
+	MOV CX, 0004
+	MOV DX, offset datoCoeficienteIntegral5
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente5
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0004
+	MOV DX, offset datoCoeficienteIntegral4
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente4
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0004
+	MOV DX, offset datoCoeficienteIntegral3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente3
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0004
+	MOV DX, offset datoCoeficienteIntegral2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente2
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset datoCoeficienteIntegral1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0003
+	MOV DX, offset mensajeMostrarCoeficiente1
+	MOV AH, 0040H
+	INT 21H
+
+	MOV CX, 0002
+	MOV DX, offset mensajeConstanteIntegracion
+	MOV AH, 0040H
+	INT 21H
+
+	SUB datoCoeficienteIntegral5[0001], 0030H
+	SUB datoCoeficienteIntegral4[0001], 0030H
+	SUB datoCoeficienteIntegral3[0001], 0030H
+	SUB datoCoeficienteIntegral2[0001], 0030H
+	SUB datoCoeficienteIntegral1[0001], 0030H
+	SUB datoCoeficienteIntegral5[0003], 0030H
+	SUB datoCoeficienteIntegral4[0003], 0030H
+	SUB datoCoeficienteIntegral3[0003], 0030H
+	SUB datoCoeficienteIntegral2[0003], 0030H
+	SUB datoCoeficienteIntegral0[0001], 0030H
+	SUB datoCoeficienteIntegral0[0002], 0030H
+
+	MOV CX, 0021
+	MOV DX, offset reporteFinHtml
+	MOV AH, 0040H
+	INT 21H
+
+	CMP CX, AX
+	MOV AH, 3EH
+	INT 21H
+	poppear
 ENDM
