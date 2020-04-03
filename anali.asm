@@ -2,8 +2,9 @@ fileReader MACRO
    pushear
    MOV AH, 3DH ; abre el archivo
       MOV AL, 0 ; abre para lectura
-      LEA DX, calculadoraNombreArchivo
+      LEA DX, calculadoraRutaOficial
       INT 21H ; interrupcion
+      JC ERROR_ABRIR
       MOV [manejadorArchivoCalculadora], AX ; carga el handler
 
       MOV AH, 3FH ; leer
@@ -18,7 +19,7 @@ fileReader MACRO
 ENDM
 
 operar MACRO
-   LOCAL ECAR, CICLO, SALIR, ASIG, MULT, DIVI, CONTINUAR, VSIG
+   LOCAL CICLO, SALIR, ASIG, MULT, DIVI, CONTINUAR, VSIG
    pushear
    XOR BX, BX
    ;pilaOperaciones
@@ -42,6 +43,11 @@ operar MACRO
          transformarNumeroAlmacenarPila
          ADD BX, 0003
 
+      CMP calculadoraTextoRecibido[BX], 0024H ; Fin de cadena
+      JE ERROR_PUNTOCOMA_ANALISIS
+      CMP calculadoraTextoRecibido[BX], 003BH ; Punto y coma
+      JE SALIR
+
       ;===================Verificacion si el caracter es un signo valido
       ;-------------------002A -> *
       ;-------------------002B -> +
@@ -56,7 +62,7 @@ operar MACRO
          JE DIVI
          CMP calculadoraTextoRecibido[BX], 002AH ; Es multiplicacion
          JE MULT
-         JMP ECAR
+         JMP ERROR_PUNTOCOMA_ANALISIS
 
       ASIG:
          ;AGREGAR EL OPERADOR A LA LISTA
@@ -77,15 +83,15 @@ operar MACRO
          ADD BX, 0002 ;==Operador 2
             ;===================Verificacion si las decenas son digito
                CMP calculadoraTextoRecibido[BX], 0030H
-               JB ENUM
+               JB ERROR_FUNCION_ANALISIS
                CMP calculadoraTextoRecibido[BX], 0039H
-               JA ENUM
+               JA ERROR_FUNCION_ANALISIS
    
             ;===================Verificacion si las unidades son digito
                CMP calculadoraTextoRecibido[BX + 1], 0030H
-               JB ENUM
+               JB ERROR_FUNCION_ANALISIS
                CMP calculadoraTextoRecibido[BX + 1], 0039H
-               JA ENUM
+               JA ERROR_FUNCION_ANALISIS
 
          ;TRANSFORMAR NUMERO Y ALMACENAR EN BL
             MOV AL, calculadoraTextoRecibido[BX] ;Digito mas significativo
@@ -99,15 +105,15 @@ operar MACRO
          ADD BX, 0002 ;==Operador 2
             ;===================Verificacion si las decenas son digito
                CMP calculadoraTextoRecibido[BX], 0030H
-               JB ENUM
+               JB ERROR_FUNCION_ANALISIS
                CMP calculadoraTextoRecibido[BX], 0039H
-               JA ENUM
+               JA ERROR_FUNCION_ANALISIS
    
             ;===================Verificacion si las unidades son digito
                CMP calculadoraTextoRecibido[BX + 1], 0030H
-               JB ENUM
+               JB ERROR_FUNCION_ANALISIS
                CMP calculadoraTextoRecibido[BX + 1], 0039H
-               JA ENUM
+               JA ERROR_FUNCION_ANALISIS
 
          ;TRANSFORMAR NUMERO Y ALMACENAR EN BL
             MOV AL, calculadoraTextoRecibido[BX] ;Digito mas significativo
@@ -119,29 +125,17 @@ operar MACRO
 
       CONTINUAR:
          CMP calculadoraTextoRecibido[BX], 0024H ; Fin de cadena
-         JE ECAR
+         JE ERROR_PUNTOCOMA_ANALISIS
          CMP calculadoraTextoRecibido[BX], 003BH ; Punto y coma
          JE SALIR
          JMP CICLO
-
-   ENUM:
-      ;MENSAJE DE ERROR
-      print errorIngresarFuncion
-      CALL PAUSA
-      JMP MENU
-
-   ECAR:
-      ;MENSAJE DE ERROR
-      print errorFaltaPuntoComa
-      CALL PAUSA
-      JMP MENU
 
    SALIR:
       poppear
 ENDM
 
 transformarDi MACRO
-   LOCAL ECER, SALIR
+   LOCAL SALIR
    pushear
    ;=============SI contiene el numero mas significativo
    ;=============SI + 1 contiene el numero menos significativo
@@ -166,17 +160,11 @@ transformarDi MACRO
       MOV AX, operador1
 
    CMP BX, 0000
-   JE ECER
+   JE ERROR_DIVISION_CERO
 
    DIV BX
    reemplazarUltimoPila
    JMP SALIR
-
-   ECER:
-      ;MENSAJE DE ERROR
-      print errorDivisionCero
-      CALL PAUSA
-      JMP MENU
 
    SALIR:
       poppear
@@ -260,11 +248,11 @@ operarPila MACRO
    LOCAL CICLO, SUMA, RESTA, CONTINUAR, SALIR, OVER
    pushear
    XOR BX, BX
+   XOR CX, CX
    MOV AX, pilaOperaciones[BX]
    MOV AH, 0000
    MOV resultado, AX
    CICLO:
-      MOV AX, pilaOperaciones[BX]
       MOV CX, pilaOperaciones[BX + 2]
       MOV DX, pilaOperaciones[BX + 1]
       CMP DL, 002BH ; Es suma
@@ -274,24 +262,58 @@ operarPila MACRO
       JMP SALIR
 
       SUMA:
-         ;print essuma
-         ;MOV operador1, CX
-         ;convertirNumero resultado
-         ;print mostrarRespuesta
-         ;CALL PAUSA
-
          CALL PROBAROVERF
+         CMP signoResultado, 002DH ; El resultado anterior es negativo
+         JE SUMARRESTA
+         ; El resultado anterior es positivo -> genera numero positivo
          ADD resultado, CX ; Se guarda el resultado
+         MOV signoResultado, 0000
          ADD BX, 0002
-         ;MOV pilaOperaciones[BX], AX
+         JMP CONTINUAR
+
+      SUMARRESTA:
+         CMP CX, resultado ; operador1 < operador2 -> genera numero negativo
+         JL OTRO
+         ; operador1 > operador2 -> genera numero positivo
+         SUB CX, resultado
+         MOV resultado, CX
+         ADD BX, 0002
+         MOV signoResultado, 0000
+         JMP CONTINUAR
+
+      OTRO:
+         SUB resultado, CX
+         ADD BX, 0002
+         MOV signoResultado, 002DH
          JMP CONTINUAR
    
       RESTA:
-         ;print esresta
          CALL PROBAROVERF
+         CMP signoResultado, 002DH ; El resultado anterior es negativo
+         JE RESTASUMA
+         ; El resultado anterior es positivo
+         CMP resultado, CX
+         JL NEGATIVO ; operador2 > operador1 -> genera numero negativo
+
+         ; operador1 > operador 2 -> genera numero positivo
          SUB resultado, CX ; Se guarda el resultado
          ADD BX, 0002
-         ;MOV pilaOperaciones[BX], AX
+         MOV signoResultado, 0000
+         JMP CONTINUAR
+
+      RESTASUMA:
+         CALL PROBAROVERF
+         ADD resultado, CX
+         ADD BX, 0002
+         MOV signoResultado, 002DH
+         JMP CONTINUAR
+
+      NEGATIVO:
+         CALL PROBAROVERF
+         SUB CX, resultado ; Se guarda el resultado
+         MOV resultado, CX
+         MOV signoResultado, 002DH
+         ADD BX, 0002
          JMP CONTINUAR
 
       CONTINUAR:
@@ -343,4 +365,27 @@ convertirNumero MACRO r
    MOV mostrarRespuesta[0004], AL
    ADD mostrarRespuesta[0004], 0030H
    poppear
+ENDM
+
+reiniciarAnalisis MACRO
+   LOCAL CICLO
+   PUSH SI
+   XOR SI, SI
+   CICLO: 
+      MOV pilaOperaciones[SI], '$'
+      INC SI
+      CMP SI, 4096
+      JLE CICLO
+   MOV signoResultado, 0000
+   MOV numeroMas, 0000
+   MOV numeroMenos, 0000
+   MOV resultadoOperacion[0000], 0000
+   MOV operador1, 0000
+   MOV mostrarRespuesta[0000], 0000
+   MOV mostrarRespuesta[0001], 0000
+   MOV mostrarRespuesta[0002], 0000
+   MOV mostrarRespuesta[0003], 0000
+   MOV mostrarRespuesta[0004], 0000
+   MOV resultado[0000], 0000
+   POP SI
 ENDM
